@@ -65,9 +65,26 @@ script:
   - cd src
   - cd external
   - qmake --version
-  - qmake 
-  - make
+  - qmake CONFIG+=release PREFIX=/usr
+  - make -j$(nproc)
   - cd ..
-  - if [[ "$TRAVIS_OS_NAME" == "osx"   ]]; then qmake "QMAKE_LFLAGS+=-L/usr/local/opt/llvm/lib -lomp" meshlab_full.pro         ;fi
-  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then qmake meshlab_full.pro         ;fi
-  - make 
+  - if [[ "$TRAVIS_OS_NAME" == "osx"   ]]; then qmake "QMAKE_LFLAGS+=-L/usr/local/opt/llvm/lib -lomp" meshlab_full.pro; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then qmake meshlab_full.pro CONFIG+=release PREFIX=/usr; fi
+  - make -j$(nproc)
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then make INSTALL_ROOT=appdir -j$(nproc) install ; find appdir/; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then wget -c -nv "https://github.com/probonopd/linuxdeployqt/releases/download/continuous/linuxdeployqt-continuous-x86_64.AppImage"; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then chmod a+x linuxdeployqt-continuous-x86_64.AppImage; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then unset QTDIR; unset QT_PLUGIN_PATH ; unset LD_LIBRARY_PATH; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then export VERSION=$(git rev-parse --short HEAD) # linuxdeployqt uses this for naming the file; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then ./linuxdeployqt-continuous-x86_64.AppImage appdir/usr/share/applications/*.desktop -bundle-non-qt-libs; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then ./linuxdeployqt-continuous-x86_64.AppImage appdir/usr/share/applications/*.desktop -appimage; fi
+
+after_success:
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then wget -c https://github.com/probonopd/uploadtool/raw/master/upload.sh; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then bash upload.sh APPNAME*.AppImage*; fi
+
+branches:
+  except:
+    - # Do not build tags that we create when we upload to GitHub Releases
+    - /^(?i:continuous)/
+ 
